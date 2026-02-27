@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
 
 # Copy the entire workspace
 COPY rust/ ./rust/
-COPY client/dist/ ./client/dist/ 2>/dev/null || echo "Client dist not found, will need to be mounted"
+RUN mkdir -p client/dist && echo "Client dist placeholder"
 
 WORKDIR /app/rust
 
