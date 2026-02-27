@@ -41,7 +41,7 @@ RUN mkdir -p /app/models /app/config /app/logs
 
 # Copy default config
 COPY rust/moshi-backend/config.json /app/config/config.json
-COPY rust/moshi-backend/config-q8.json /app/config/config-q8.json 2>/dev/null || echo "Q8 config not found"
+RUN if [ -f rust/moshi-backend/config-q8.json ]; then cp rust/moshi-backend/config-q8.json /app/config/config-q8.json; else echo "Q8 config not found"; fi
 
 # Set environment variables
 ENV RUST_LOG=info
