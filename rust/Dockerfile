@@ -18,8 +18,8 @@ RUN mkdir -p client/dist && echo "Client dist placeholder"
 
 WORKDIR /app/rust
 
-# Build the moshi-backend binary
-RUN cargo build --release --bin moshi-backend --features cuda
+# Build the moshi-backend binary (CPU version for compatibility)
+RUN cargo build --release --bin moshi-backend
 
 # Runtime stage
 FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
