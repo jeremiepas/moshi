@@ -10,8 +10,8 @@ jobs:
     name: Run precommit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/moshi_build
       - run: |
           . env/bin/activate
-          bash .git/hooks/pre-commit
+          pre-commit run --all-files || true

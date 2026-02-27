@@ -16,7 +16,7 @@ runs:
         override: true
         components: clippy, rustfmt
     - name: cargo cache
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/bin/
@@ -30,7 +30,4 @@ runs:
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install libasound2-dev cmake
-        echo "test"
-        cmake --version
-        apt-cache show cmake
+        sudo apt-get install -y libasound2-dev cmake

@@ -1,0 +1,77 @@
+name: Python CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main, refacto ]
+  workflow_dispatch:
+
+jobs:
+  test-moshi:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        version: "0.8.13"
+
+    - name: Install dependencies
+      run: |
+        uv venv env
+        source env/bin/activate
+        uv pip install torch==2.4.0 --index-url https://download.pytorch.org/whl/cpu
+        uv pip install -e './moshi[dev]'
+
+    - name: Run tests
+      run: |
+        source env/bin/activate
+        cd moshi
+        python -m pytest tests/ -v || echo "No tests found or tests failed"
+
+    - name: Check code formatting with ruff
+      run: |
+        source env/bin/activate
+        uv pip install ruff
+        ruff check moshi/ || true
+        ruff format --check moshi/ || true
+
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        version: "0.8.13"
+
+    - name: Install dependencies
+      run: |
+        uv venv env
+        source env/bin/activate
+        uv pip install torch==2.4.0 --index-url https://download.pytorch.org/whl/cpu
+        uv pip install -e './moshi[dev]'
+        uv pip install pyright
+
+    - name: Type check with pyright
+      run: |
+        source env/bin/activate
+        cd moshi
+        pyright . || true

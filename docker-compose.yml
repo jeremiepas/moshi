@@ -7,14 +7,20 @@ services:
   moshi:
     build:
       context: ./moshi
+      dockerfile: Dockerfile
+    container_name: moshi-backend
     expose:
-     - 8998/tcp
+      - 8998/tcp
+    ports:
+      - "8998:8998"
     restart: unless-stopped
     volumes:
       - hf-cache:/root/.cache/huggingface
+      - ./models:/app/models:ro
     environment:
-      #- HF_REPO=kyutai/moshika-pytorch-bf16
-      - HF_REPO=kyutai/moshiko-pytorch-bf16
+      - HF_REPO=${HF_REPO:-kyutai/moshiko-pytorch-bf16}
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
     deploy:
       resources:
         reservations:
@@ -22,6 +28,27 @@ services:
             - driver: nvidia
               capabilities: [gpu]
               count: all
+    healthcheck:
+      test: ["CMD", "python3.10", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8998/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - moshi-network
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: moshi-client
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    depends_on:
+      - moshi
+    networks:
+      - moshi-network
 
   tunnel:
     image: cloudflare/cloudflared:latest
@@ -35,6 +62,46 @@ services:
     command: tunnel --no-autoupdate
     depends_on:
       - moshi
+    profiles:
+      - tunnel
+    networks:
+      - moshi-network
+
+  # Rust backend alternative (optional)
+  moshi-rust:
+    build:
+      context: .
+      dockerfile: ./rust/Dockerfile
+    container_name: moshi-rust-backend
+    expose:
+      - 8998/tcp
+    ports:
+      - "8999:8998"
+    restart: unless-stopped
+    volumes:
+      - rust-models:/app/models
+      - ./rust/moshi-backend/config.json:/app/config/config.json:ro
+    environment:
+      - RUST_LOG=info
+      - HF_HOME=/app/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+              count: all
+    profiles:
+      - rust
+    networks:
+      - moshi-network
 
 volumes:
   hf-cache:
+    driver: local
+  rust-models:
+    driver: local
+
+networks:
+  moshi-network:
+    driver: bridge

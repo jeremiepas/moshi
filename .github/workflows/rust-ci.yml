@@ -1,10 +1,9 @@
+name: Rust CI
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main, refacto ]
-
-name: Rust CI
 
 jobs:
   check:
@@ -18,7 +17,7 @@ jobs:
         os: [ubuntu-latest]
         rust: [stable]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/rust_build
       - name: check
         shell: bash
@@ -43,7 +42,7 @@ jobs:
         os: [ubuntu-latest]
         rust: [stable]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: 3.11
