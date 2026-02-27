@@ -1,0 +1,54 @@
+{{- if .Values.webui.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "moshi.fullname" . }}-webui
+  labels:
+    {{- include "moshi.webuiLabels" . | nindent 4 }}
+spec:
+  {{- if not .Values.webui.autoscaling.enabled }}
+  replicas: {{ .Values.webui.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "moshi.webuiSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "moshi.webuiSelectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "moshi.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.webui.podSecurityContext | nindent 8 }}
+      containers:
+        - name: webui
+          securityContext:
+            {{- toYaml .Values.webui.securityContext | nindent 12 }}
+          image: "{{ .Values.webui.image.repository }}:{{ .Values.webui.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.webui.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.webui.resources | nindent 12 }}
+          env:
+            - name: BACKEND_URL
+              value: "http://{{ include "moshi.fullname" . }}-backend:{{ .Values.backend.service.port }}"
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

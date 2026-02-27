@@ -1,0 +1,185 @@
+# Default values for moshi
+# This is a YAML-formatted file
+
+# Global settings
+nameOverride: ""
+fullnameOverride: ""
+
+# Service account configuration
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Image pull secrets
+imagePullSecrets: []
+
+# Model configuration
+model:
+  # Model to download (HuggingFace repo)
+  hfRepo: "kyutai/moshiko-pytorch-bf16"
+  # Alternative: "kyutai/moshika-pytorch-bf16"
+  
+  # Storage configuration for models
+  storage:
+    size: 50Gi
+    storageClass: "longhorn"
+    accessMode: ReadWriteOnce
+  
+  # Init container image for downloading models
+  downloader:
+    image:
+      repository: python
+      tag: "3.10-slim"
+      pullPolicy: IfNotPresent
+
+# Backend configuration (Moshi server)
+backend:
+  enabled: true
+  
+  replicaCount: 1
+  
+  autoscaling:
+    enabled: false
+  
+  image:
+    repository: ghcr.io/jeremiepas/moshi/moshi
+    tag: latest
+    pullPolicy: Always
+  
+  # GPU configuration
+  gpu:
+    enabled: true
+    count: 1
+    type: nvidia.com/gpu
+  
+  resources:
+    limits:
+      memory: "24Gi"
+      cpu: "8"
+    requests:
+      memory: "16Gi"
+      cpu: "4"
+  
+  service:
+    type: ClusterIP
+    port: 8998
+  
+  # Security context
+  podSecurityContext:
+    fsGroup: 1000
+    
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+  
+  # Health checks
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 3
+    httpGet:
+      path: /health
+      port: http
+  
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    httpGet:
+      path: /health
+      port: http
+
+# WebUI configuration
+webui:
+  enabled: true
+  
+  replicaCount: 1
+  
+  autoscaling:
+    enabled: false
+  
+  image:
+    repository: ghcr.io/jeremiepas/moshi/client
+    tag: latest
+    pullPolicy: Always
+  
+  resources:
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+  
+  service:
+    type: ClusterIP
+    port: 80
+  
+  # Security context
+  podSecurityContext:
+    fsGroup: 101
+    
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 101
+  
+  ingress:
+    enabled: true
+    className: "traefik"
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: web
+    hosts:
+      - host: moshi.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+
+# Rust backend alternative (optional)
+rustBackend:
+  enabled: false
+  
+  image:
+    repository: ghcr.io/jeremiepas/moshi/rust-backend
+    tag: latest
+    pullPolicy: Always
+  
+  gpu:
+    enabled: true
+    count: 1
+    type: nvidia.com/gpu
+  
+  resources:
+    limits:
+      memory: "16Gi"
+      cpu: "8"
+    requests:
+      memory: "8Gi"
+      cpu: "4"
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+
+# Affinity
+affinity: {}
+
+# Persistence
+persistence:
+  enabled: true
+  existingClaim: ""
+
+# Configuration for model download job
+modelDownload:
+  enabled: true
+  ttlSecondsAfterFinished: 3600

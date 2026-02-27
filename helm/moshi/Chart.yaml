@@ -1,0 +1,17 @@
+apiVersion: v2
+name: moshi
+description: A Helm chart for deploying Moshi speech-text foundation model on Kubernetes
+type: application
+version: 0.1.0
+appVersion: "0.6.4"
+keywords:
+  - moshi
+  - speech
+  - ai
+  - nlp
+home: https://github.com/jeremiepas/moshi
+sources:
+  - https://github.com/jeremiepas/moshi
+maintainers:
+  - name: jeremiepas
+    email: jeremie@example.com

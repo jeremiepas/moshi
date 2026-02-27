@@ -1,0 +1,17 @@
+{{- if .Values.webui.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "moshi.fullname" . }}-webui
+  labels:
+    {{- include "moshi.webuiLabels" . | nindent 4 }}
+spec:
+  type: {{ .Values.webui.service.type }}
+  ports:
+    - port: {{ .Values.webui.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "moshi.webuiSelectorLabels" . | nindent 4 }}
+{{- end }}

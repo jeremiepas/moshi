@@ -1,0 +1,15 @@
+{{- if .Values.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "moshi.fullname" . }}-models
+  labels:
+    {{- include "moshi.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.model.storage.accessMode }}
+  storageClassName: {{ .Values.model.storage.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.model.storage.size }}
+{{- end }}
