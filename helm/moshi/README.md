@@ -127,3 +127,152 @@ Ensure NVIDIA GPU Operator is installed and nodes are labeled:
 ```bash
 kubectl describe nodes | grep nvidia.com/gpu
 ```
+
+## Test Environment
+
+Deploy a lightweight test environment using Q8 quantized model (<12GB VRAM):
+
+```bash
+helm install moshi-test . -f values-test.yaml --namespace moshi-test --create-namespace
+```
+
+The test environment uses:
+- **Model**: `kyutai/moshika-pytorch-q8` (Q8 quantized, ~12GB VRAM)
+- **Resources**: Reduced limits (12Gi memory, 4 CPU cores)
+- **Storage**: 20Gi for model cache
+- **Ingress**: `test.moshi.homelab`
+
+### Alternative Model
+
+To use the male voice variant:
+```bash
+helm install moshi-test . -f values-test.yaml \
+  --set model.hfRepo=kyutai/moshiko-pytorch-q8 \
+  --namespace moshi-test --create-namespace
+```
+
+## GPU Time-Slicing
+
+Share a single GPU across multiple pods using NVIDIA time-slicing.
+
+### Prerequisites (Cluster-Level Setup)
+
+1. **NVIDIA Device Plugin Configuration** (managed by cluster admin):
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nvidia-device-plugin-config
+  namespace: nvidia-device-plugin
+data:
+  config: |
+    {
+      "sharing": {
+        "timeSlicing": {
+          "renameByDefault": false,
+          "failRequestsGreaterThanOne": false
+        }
+      }
+    }
+```
+
+2. Apply the configuration and restart the GPU operator
+
+### Enable Time-Slicing in Helm
+
+```yaml
+backend:
+  gpu:
+    enabled: true
+    count: 1
+    shared: true  # Uses nvidia.com/gpu.shared resource type
+```
+
+**Note**: Time-slicing requires cluster-level setup. Pods will fail to schedule if the cluster doesn't have the shared GPU resource configured.
+
+## Observability Stack
+
+Deploy optional Prometheus and Grafana for monitoring Moshi metrics.
+
+### Enable Observability
+
+```bash
+helm install moshi-test . -f values-test.yaml \
+  --set observability.enabled=true \
+  --set observability.grafana.adminPassword=secure-password \
+  --namespace moshi-test --create-namespace
+```
+
+### Access Grafana
+
+- **URL**: http://grafana.moshi.homelab
+- **Default Credentials**: admin / changeme (configure in values)
+
+### Available Dashboards
+
+1. **Moshi Overview**: Token throughput, audio frames, latency
+2. **GPU Utilization**: Memory usage, compute utilization
+3. **Resource Usage**: CPU and memory over time
+
+### Metrics Collected
+
+The observability stack parses Moshi backend logs to expose:
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `moshi_text_tokens_total` | Counter | Total text tokens generated |
+| `moshi_tokens_per_sec` | Gauge | Token throughput |
+| `moshi_audio_frames_total` | Counter | Audio frames processed |
+| `moshi_inference_latency_seconds` | Gauge | Inference latency |
+
+### Disable Observability
+
+```bash
+helm upgrade moshi-test . -f values-test.yaml \
+  --set observability.enabled=false \
+  --namespace moshi-test
+```
+
+### Resource Requirements
+
+| Component | CPU Request | CPU Limit | Memory Request | Memory Limit |
+|-----------|-------------|-----------|----------------|--------------|
+| Prometheus | 250m | 500m | 1Gi | 2Gi |
+| Metrics Sidecar | 100m | 500m | 128Mi | 512Mi |
+| Grafana | 250m | 500m | 256Mi | 512Mi |
+
+## Configuration Reference
+
+### GPU Configuration
+
+```yaml
+backend:
+  gpu:
+    enabled: true       # Enable GPU support
+    count: 1           # Number of GPUs
+    type: nvidia.com/gpu # Resource type (nvidia.com/gpu or nvidia.com/gpu.shared)
+    shared: false      # Enable time-slicing (requires cluster setup)
+```
+
+### Observability Configuration
+
+```yaml
+observability:
+  enabled: false  # Master toggle
+  
+  prometheus:
+    enabled: true
+    retention: 15d
+    storage:
+      size: 10Gi
+      storageClass: "longhorn"
+    resources:
+      limits: { memory: "2Gi", cpu: "500m" }
+      requests: { memory: "1Gi", cpu: "250m" }
+  
+  grafana:
+    enabled: true
+    adminPassword: "changeme"
+    ingress:
+      enabled: true
+      host: grafana.moshi.homelab

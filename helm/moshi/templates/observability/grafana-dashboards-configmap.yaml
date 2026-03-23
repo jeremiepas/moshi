@@ -1,0 +1,137 @@
+{{- if .Values.observability.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "moshi.fullname" . }}-grafana-dashboards
+  labels:
+    {{- include "moshi.labels" . | nindent 4 }}
+    grafana_dashboard: "1"
+data:
+  moshi-overview.json: |
+    {
+      "dashboard": {
+        "title": "Moshi Overview",
+        "uid": "moshi-overview",
+        "panels": [
+          {
+            "title": "Text Tokens Generated",
+            "type": "stat",
+            "datasource": "Prometheus",
+            "targets": [
+              {
+                "expr": "moshi_text_tokens_total",
+                "legendFormat": "Total Tokens"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "title": "Token Throughput",
+            "type": "graph",
+            "datasource": "Prometheus",
+            "targets": [
+              {
+                "expr": "moshi_tokens_per_sec",
+                "legendFormat": "Tokens/sec"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+          },
+          {
+            "title": "Audio Frames Processed",
+            "type": "stat",
+            "datasource": "Prometheus",
+            "targets": [
+              {
+                "expr": "moshi_audio_frames_total",
+                "legendFormat": "Total Frames"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+          },
+          {
+            "title": "Inference Latency",
+            "type": "graph",
+            "datasource": "Prometheus",
+            "targets": [
+              {
+                "expr": "moshi_inference_latency_seconds",
+                "legendFormat": "Latency (s)"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+          }
+        ]
+      }
+    }
+  gpu-utilization.json: |
+    {
+      "dashboard": {
+        "title": "GPU Utilization",
+        "uid": "gpu-utilization",
+        "panels": [
+          {
+            "title": "GPU Memory Usage",
+            "type": "graph",
+            "datasource": "Prometheus",
+            "targets": [
+              {
+                "expr": "nvidia_gpu_memory_used_bytes",
+                "legendFormat": "Memory Used"
+              },
+              {
+                "expr": "nvidia_gpu_memory_total_bytes",
+                "legendFormat": "Memory Total"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "title": "GPU Compute Utilization",
+            "type": "graph",
+            "datasource": "Prometheus",
+            "targets": [
+              {
+                "expr": "nvidia_gpu_duty_cycle",
+                "legendFormat": "Utilization %"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+          }
+        ]
+      }
+    }
+  resource-usage.json: |
+    {
+      "dashboard": {
+        "title": "Resource Usage",
+        "uid": "resource-usage",
+        "panels": [
+          {
+            "title": "CPU Usage",
+            "type": "graph",
+            "datasource": "Prometheus",
+            "targets": [
+              {
+                "expr": "rate(container_cpu_usage_seconds_total{pod=~\"moshi-.*-backend.*\"}[5m])",
+                "legendFormat": "Backend CPU"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "title": "Memory Usage",
+            "type": "graph",
+            "datasource": "Prometheus",
+            "targets": [
+              {
+                "expr": "container_memory_working_set_bytes{pod=~\"moshi-.*-backend.*\"}",
+                "legendFormat": "Backend Memory"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+          }
+        ]
+      }
+    }
+{{- end }}

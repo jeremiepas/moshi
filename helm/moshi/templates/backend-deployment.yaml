@@ -54,8 +54,23 @@ spec:
             {{- toYaml .Values.backend.livenessProbe | nindent 12 }}
           readinessProbe:
             {{- toYaml .Values.backend.readinessProbe | nindent 12 }}
+          {{- if .Values.backend.gpu.enabled }}
+          resources:
+            limits:
+              {{- if .Values.backend.gpu.shared }}
+              nvidia.com/gpu.shared: {{ .Values.backend.gpu.count }}
+              {{- else }}
+              nvidia.com/gpu: {{ .Values.backend.gpu.count }}
+              {{- end }}
+              memory: {{ .Values.backend.resources.limits.memory }}
+              cpu: {{ .Values.backend.resources.limits.cpu }}
+            requests:
+              memory: {{ .Values.backend.resources.requests.memory }}
+              cpu: {{ .Values.backend.resources.requests.cpu }}
+          {{- else }}
           resources:
             {{- toYaml .Values.backend.resources | nindent 12 }}
+          {{- end }}
           env:
             - name: HF_REPO
               value: {{ .Values.model.hfRepo }}
@@ -66,12 +81,6 @@ spec:
           volumeMounts:
             - name: model-storage
               mountPath: /models
-          {{- if .Values.backend.gpu.enabled }}
-          resources:
-            limits:
-              nvidia.com/gpu: {{ .Values.backend.gpu.count }}
-            {{- toYaml .Values.backend.resources.limits | nindent 12 }}
-          {{- end }}
       volumes:
         - name: model-storage
           {{- if .Values.persistence.existingClaim }}

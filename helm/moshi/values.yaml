@@ -52,6 +52,9 @@ backend:
     enabled: true
     count: 1
     type: nvidia.com/gpu
+    # Time-slicing configuration (requires cluster-level NVIDIA device plugin setup)
+    # Set to true to use nvidia.com/gpu.shared resource type
+    shared: false
   
   resources:
     limits:

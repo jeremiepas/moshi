@@ -1,0 +1,307 @@
+# Test environment values for Moshi on test.moshi.homelab
+# This configuration uses:
+# - Smaller Q8 quantized model (<12GB VRAM)
+# - Reduced resource limits
+# - Optional observability stack (Prometheus + Grafana)
+# - GPU time-slicing ready (when cluster configured)
+
+# =============================================================================
+# Domain Configuration
+# =============================================================================
+domain:
+  subdomain: "test"  # Results in: test.moshi.homelab
+
+# =============================================================================
+# Model Configuration (<12GB)
+# =============================================================================
+model:
+  # Q8 quantized model - fits in 12GB VRAM
+  # Female voice variant (moshika)
+  hfRepo: "kyutai/moshika-pytorch-q8"
+  # Alternative: "kyutai/moshiko-pytorch-q8" (male voice)
+  
+  # Reduced storage for test environment
+  storage:
+    size: 20Gi
+    storageClass: "longhorn"
+    accessMode: ReadWriteOnce
+  
+  # Init container for downloading models
+  downloader:
+    image:
+      repository: python
+      tag: "3.10-slim"
+      pullPolicy: IfNotPresent
+
+# =============================================================================
+# Backend Configuration (Moshi Server)
+# =============================================================================
+backend:
+  enabled: true
+  replicaCount: 1
+  
+  autoscaling:
+    enabled: false
+  
+  image:
+    repository: ghcr.io/jeremiepas/moshi/moshi
+    tag: latest
+    pullPolicy: Always
+  
+  # GPU configuration
+  gpu:
+    enabled: true
+    count: 1
+    type: nvidia.com/gpu
+    # Time-slicing configuration
+    # When cluster has time-slicing configured, set shared: true
+    # and increase replicaCount to share GPU across pods
+    shared: false
+    replicas: 1
+  
+  # Reduced resources for Q8 model
+  resources:
+    limits:
+      memory: "12Gi"      # Reduced from 24Gi for Q8 model
+      cpu: "4"
+      nvidia.com/gpu: 1
+    requests:
+      memory: "8Gi"       # Reduced from 16Gi
+      cpu: "2"
+  
+  service:
+    type: ClusterIP
+    port: 8998
+  
+  # Security context
+  podSecurityContext:
+    fsGroup: 1000
+    
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+  
+  # Health checks
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 3
+    httpGet:
+      path: /health
+      port: http
+  
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    httpGet:
+      path: /health
+      port: http
+
+# =============================================================================
+# WebUI Configuration
+# =============================================================================
+webui:
+  enabled: true
+  replicaCount: 1
+  
+  autoscaling:
+    enabled: false
+  
+  image:
+    repository: ghcr.io/jeremiepas/moshi/client
+    tag: latest
+    pullPolicy: Always
+  
+  resources:
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+  
+  service:
+    type: ClusterIP
+    port: 80
+  
+  # Security context
+  podSecurityContext:
+    fsGroup: 101
+    
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 101
+  
+  # Ingress for test.moshi.homelab
+  ingress:
+    enabled: true
+    className: "traefik"
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: web
+      # Uncomment for HTTPS
+      # traefik.ingress.kubernetes.io/router.tls: "true"
+    hosts:
+      - host: test.moshi.homelab
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+    # Uncomment for HTTPS
+    # tls:
+    #   - secretName: moshi-test-tls
+    #     hosts:
+    #       - test.moshi.homelab
+
+# =============================================================================
+# Optional Observability Stack (Prometheus + Grafana)
+# =============================================================================
+# Set observability.enabled to true to deploy monitoring stack
+observability:
+  enabled: false
+  
+  prometheus:
+    enabled: true
+    image:
+      repository: prom/prometheus
+      tag: v2.50.0
+      pullPolicy: IfNotPresent
+    
+    # Data retention
+    retention: 15d
+    
+    # Storage configuration
+    storage:
+      size: 10Gi
+      storageClass: "longhorn"
+      accessMode: ReadWriteOnce
+    
+    resources:
+      limits:
+        memory: "2Gi"
+        cpu: "500m"
+      requests:
+        memory: "1Gi"
+        cpu: "250m"
+    
+    service:
+      type: ClusterIP
+      port: 9090
+    
+    # Scrape configuration for Moshi backend
+    scrapeInterval: 15s
+    scrapeTimeout: 10s
+  
+  grafana:
+    enabled: true
+    image:
+      repository: grafana/grafana
+      tag: 10.3.1
+      pullPolicy: IfNotPresent
+    
+    # Admin credentials (change in production!)
+    adminUser: "admin"
+    adminPassword: "changeme"
+    
+    resources:
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+    
+    service:
+      type: ClusterIP
+      port: 3000
+    
+    # Ingress for grafana.moshi.homelab
+    ingress:
+      enabled: true
+      className: "traefik"
+      annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: web
+        # Uncomment for HTTPS
+        # traefik.ingress.kubernetes.io/router.tls: "true"
+      host: grafana.moshi.homelab
+      tls: []
+      # Uncomment for HTTPS
+      # tls:
+      #   - secretName: grafana-test-tls
+      #     hosts:
+      #       - grafana.moshi.homelab
+    
+    # Pre-configured dashboards
+    dashboards:
+      enabled: true
+      # Token throughput dashboard
+      tokenMetrics: true
+      # GPU utilization dashboard
+      gpuMetrics: true
+      # Audio latency dashboard
+      audioMetrics: true
+
+# =============================================================================
+# Rust Backend Alternative (optional)
+# =============================================================================
+rustBackend:
+  enabled: false
+  
+  image:
+    repository: ghcr.io/jeremiepas/moshi/rust-backend
+    tag: latest
+    pullPolicy: Always
+  
+  gpu:
+    enabled: true
+    count: 1
+    type: nvidia.com/gpu
+  
+  resources:
+    limits:
+      memory: "12Gi"
+      cpu: "4"
+    requests:
+      memory: "8Gi"
+      cpu: "2"
+
+# =============================================================================
+# Node Configuration
+# =============================================================================
+nodeSelector: {}
+
+# Tolerations for GPU nodes
+tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+
+affinity: {}
+
+# =============================================================================
+# Persistence
+# =============================================================================
+persistence:
+  enabled: true
+  existingClaim: ""
+
+# =============================================================================
+# Model Download Job
+# =============================================================================
+modelDownload:
+  enabled: true
+  ttlSecondsAfterFinished: 3600
+
+# =============================================================================
+# Service Account
+# =============================================================================
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+imagePullSecrets: []

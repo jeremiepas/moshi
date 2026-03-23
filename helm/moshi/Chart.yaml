@@ -15,3 +15,8 @@ sources:
 maintainers:
   - name: jeremiepas
     email: jeremie@example.com
+dependencies:
+  - name: grafana
+    version: "7.3.x"
+    repository: https://grafana.github.io/helm-charts
+    condition: observability.grafana.enabled

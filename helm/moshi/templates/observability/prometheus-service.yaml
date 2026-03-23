@@ -1,0 +1,21 @@
+{{- if .Values.observability.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "moshi.prometheus.fullname" . }}
+  labels:
+    {{- include "moshi.prometheus.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.observability.prometheus.service.type | default "ClusterIP" }}
+  ports:
+    - name: web
+      port: {{ .Values.observability.prometheus.service.port | default 9090 }}
+      targetPort: web
+      protocol: TCP
+    - name: metrics
+      port: 9091
+      targetPort: metrics
+      protocol: TCP
+  selector:
+    {{- include "moshi.prometheus.selectorLabels" . | nindent 4 }}
+{{- end }}
